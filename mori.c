@@ -33,8 +33,8 @@ int relu(int x)
     return (x < 0) ? 0 : x;
 }
 
-//TERRAIN METHODS
-int init_terrain(int height, int width)
+//INIT METHODS
+void init_terrain(int height, int width)
 {
     srand(time(NULL));
     int y;
@@ -77,6 +77,18 @@ int init_terrain(int height, int width)
         }
     }
 }
+bool walkable(int y, int x){
+    return (y < screenHeight) && (x < screenWidth) && terrain[y][x] > 0;
+}
+
+//PLAYER METHODS
+void init_player(){
+    while(!(walkable(playerY, playerX) && walkable(playerY+1, playerX) && walkable(playerY, playerX+1) && walkable(playerY+1, playerX+1))){
+        playerY++;
+        playerX++;
+    }
+}
+
 
 //CONTROL METHODS
 int get_key(WINDOW *win){
@@ -98,7 +110,7 @@ void render_terrain(){
         for(int x = 0 ; x < screenWidth ; x++)
         {
             attron(COLOR_PAIR(terrain[y][x]+1));
-            mvaddch(y, x, ((y == playerY && x == playerX) ? '&' : ' ')); //TODO, separate terrain/player render logic
+            mvaddch(y, x, ' '); //TODO, separate terrain/player render logic
             attroff(COLOR_PAIR(terrain[y][x]+1));
         }
     }
@@ -106,7 +118,7 @@ void render_terrain(){
 
 
 void render_player(){
-	//mvaddstr(playerY, playerX,   "&"); // draw player sprite
+	mvaddstr(playerY, playerX,   "&"); // draw player sprite
 	mvaddstr(playerY, playerX,  "");   // move cursor to player position
 }
 
@@ -120,22 +132,34 @@ void render(){
 
 
 //MAIN METHODS
-bool game_loop(int pressed){
+void move_player(int pressed){
+    int new_playerY = playerY;
+    int new_playerX = playerX;
+
     if(pressed == 119){
-        playerY--;
+        new_playerY--;
     }
     else if(pressed == 100){
-        playerX++;
+        new_playerX++;
     }
     else if(pressed == 115){
-        playerY++;
+        new_playerY++;
     }
     else if(pressed == 97){
-        playerX--;
+        new_playerX--;
     }
     else if(pressed == 98){
         erase();
     }
+
+    if(walkable(new_playerY, new_playerX)){
+        playerY = new_playerY;
+        playerX = new_playerX;
+    }
+}
+
+bool game_loop(int pressed){
+    move_player(pressed);
     render();
     return true;
 }
@@ -162,6 +186,7 @@ int main() {
     getmaxyx(win, screenHeight, screenWidth);
     
     init_terrain(screenHeight, screenWidth);
+    init_player();
 
 
 

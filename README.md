@@ -1,6 +1,10 @@
 # moriCsrevenge
 Coming 2024
 
-Version 1.0.0 released Feb 4th, 2024 Includes
+Version 0.1.0 released Feb 4th, 2024 Includes
 - Random Terrain Generation
 - Ability to move character
+
+
+Version 0.1.1 released Mar 1st, 2024 Includes:
+- It is no longer possible to walk in deep water 
