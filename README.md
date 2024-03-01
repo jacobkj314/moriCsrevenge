@@ -11,3 +11,6 @@ Version 0.1.1 released Mar 1st, 2024 Includes:
 
 Version 0.1.2 released Mar 1st 2024 Includes:
 - The side panel with messages has been added
+
+Version 0.1.3 released Mar 1st 2024 Includes:
+- Added Trees, Corals, and Apples

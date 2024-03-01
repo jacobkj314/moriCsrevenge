@@ -15,7 +15,7 @@ int viewWidth;
 int consoleWidth;
 
 int** terrain;
-int** objects;
+char** objects;
 
 char** messages;
 
@@ -38,6 +38,19 @@ int min(int a, int b, int c, int d)
 int relu(int x)
 {
     return (x < 0) ? 0 : x;
+}
+
+bool walkable(int y, int x){
+    return (y < screenHeight) && (x < viewWidth) && (terrain[y][x] > 0) && objects[y][x] == ' ';
+}
+bool land(int y, int x){
+    return terrain[y][x] > 1;
+}
+bool sea(int y, int x){
+    return terrain[y][x] < 2;
+}
+bool interactable(int y, int x){
+    return (objects[y][x] == '!'); //TODO: expand
 }
 
 //INIT METHODS
@@ -83,6 +96,34 @@ void init_terrain(int height, int width)
             terrain[y][x] = 3-relu(3-terrain[y][x]);
         }
     }
+
+    //init objects array
+    objects = (char**) malloc(height*sizeof(char*));
+    for(y = 0 ; y < height; y++)
+    {
+        objects[y] = (char*) malloc(width*sizeof(char));
+    }
+    for(y = 0; y < height ; y++){
+        for(x = 0 ; x < width ; x ++){
+            objects[y][x] = ' ';
+        }
+    }
+    for(y = 0; y < height ; y++){
+        for(x = 0 ; x < width ; x ++){
+            bool generate_nature = (((rand() % 50) == 1));
+            if(generate_nature){
+                bool on_land = land(y, x);
+                objects[y][x] = (on_land ? '!' : '?'); //trees and corals
+                if(on_land){
+                    if((rand() % 20) == 1){
+                        int dy = (rand() % 2) * 2 - 1;
+                        int dx = (rand() % 2) * 2 - 1;
+                        objects[y+dy][x+dx] = 'a';
+                    }
+                }
+            }
+        }
+    }
 }
 void init_console(){
     messages = (char**) malloc(screenHeight*sizeof(char*));
@@ -95,14 +136,12 @@ void init_console(){
     }
 }
 
-bool walkable(int y, int x){
-    return (y < screenHeight) && (x < viewWidth) && terrain[y][x] > 0;
-}
+
 
 
 //PLAYER METHODS
 void init_player(){
-    while(!(walkable(playerY, playerX) && walkable(playerY+1, playerX) && walkable(playerY, playerX+1) && walkable(playerY+1, playerX+1))){
+    while(!(land(playerY, playerX) && walkable(playerY, playerX) && land(playerY+1, playerX) && land(playerY, playerX+1) && land(playerY+1, playerX+1))){
         playerY++;
         playerX++;
     }
@@ -129,7 +168,7 @@ void render_terrain(){
         for(int x = 0 ; x < viewWidth ; x++)
         {
             attron(COLOR_PAIR(terrain[y][x]+1));
-            mvaddch(y, x, ' ');
+            mvaddch(y, x, objects[y][x]);
             attroff(COLOR_PAIR(terrain[y][x]+1));
         }
     }
@@ -197,16 +236,18 @@ void move_player(int pressed){
         erase();
     }
 
-    //revert changes if player is trying to walk to a new space
-    if(!walkable(new_playerY, new_playerX)){
+    if(walkable(new_playerY, new_playerX)){
+        playerX = new_playerX;
+        playerY = new_playerY;
+    }
+    else if(interactable(new_playerY, new_playerX)){
+        wrconsole("You found a tree!");
+    }
+    else{
         wrconsole("You cannot go there!");
-        new_playerY = playerY;
-        new_playerX = playerX;
     }
 
 
-    playerY = new_playerY;
-    playerX = new_playerX;
 }
 
 bool game_loop(int pressed){
@@ -232,12 +273,17 @@ int main() {
         int color_number;
         for(color_number=0; color_number < num_colors; color_number++)
         {
-            init_pair(color_number+1, COLOR_BLACK, colors[color_number]);
+            init_pair(color_number+1, COLOR_RED, colors[color_number]);
         }
         for( ; color_number < num_colors*2; color_number++)
         {
             init_pair(color_number+1, COLOR_MAGENTA, colors[color_number-num_colors]);
         }
+        for( ; color_number < num_colors*3; color_number++)
+        {
+            init_pair(color_number+1, COLOR_RED, colors[color_number-num_colors]);
+        }
+
     }
 
     getmaxyx(win, screenHeight, screenWidth);
