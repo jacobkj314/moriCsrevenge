@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 
 //VARIABLES
 int MS_PER_TICK = 50;
@@ -10,8 +11,13 @@ int MS_PER_TICK = 50;
 int screenHeight;
 int screenWidth;
 
+int viewWidth;
+int consoleWidth;
+
 int** terrain;
 int** objects;
+
+char** messages;
 
 int pressed;
 
@@ -19,6 +25,7 @@ int playerX, playerY;
 
 int colors[] = {COLOR_BLUE, COLOR_CYAN, COLOR_YELLOW, COLOR_GREEN, COLOR_BLACK};
 int num_colors = 4;
+int player_color;
 
 //HELPER FUNCTIONS
 int min(int a, int b, int c, int d)
@@ -77,9 +84,21 @@ void init_terrain(int height, int width)
         }
     }
 }
-bool walkable(int y, int x){
-    return (y < screenHeight) && (x < screenWidth) && terrain[y][x] > 0;
+void init_console(){
+    messages = (char**) malloc(screenHeight*sizeof(char*));
+    for(int i = 0 ; i < screenHeight; i++)
+    {
+        messages[i] = (char*) malloc(consoleWidth*sizeof(char));
+        for(int j = 0 ; j < consoleWidth; j++){
+            messages[i][j] = ' ';
+        }
+    }
 }
+
+bool walkable(int y, int x){
+    return (y < screenHeight) && (x < viewWidth) && terrain[y][x] > 0;
+}
+
 
 //PLAYER METHODS
 void init_player(){
@@ -107,19 +126,35 @@ int get_key(WINDOW *win){
 void render_terrain(){
     for(int y = 0 ; y < screenHeight ; y++)
     {
-        for(int x = 0 ; x < screenWidth ; x++)
+        for(int x = 0 ; x < viewWidth ; x++)
         {
             attron(COLOR_PAIR(terrain[y][x]+1));
-            mvaddch(y, x, ' '); //TODO, separate terrain/player render logic
+            mvaddch(y, x, ' ');
             attroff(COLOR_PAIR(terrain[y][x]+1));
+        }
+    }
+}
+
+void render_console(){
+    for(int i = 0; i < screenHeight; i++){
+        //mvaddch(i, viewWidth, '|');
+        char* message = messages[i];
+        for(int j = 0; j < consoleWidth; j++){
+            char c = message[j];
+            if(c == '\0'){
+                break;
+            }
+            mvaddch(i, viewWidth+j, c);
         }
     }
 }
 
 
 void render_player(){
-	mvaddstr(playerY, playerX,   "&"); // draw player sprite
-	mvaddstr(playerY, playerX,  "");   // move cursor to player position
+    attron(COLOR_PAIR(terrain[playerY][playerX]+5));
+	mvaddstr(playerY, playerX, "&"); // draw player sprite
+    attroff(COLOR_PAIR(terrain[playerY][playerX]+5));
+	mvaddstr(playerY, playerX, "");   // move cursor to player position
 }
 
 
@@ -127,9 +162,19 @@ void render_player(){
 void render(){
 	erase();
 	render_terrain();
+    render_console();
 	render_player();
 }
 
+void wrconsole(char* message){
+    int num_new_lines = strlen(message) / consoleWidth + 1;
+    for(int i = screenHeight-1; i >= num_new_lines; i--){
+        messages[i] = messages[i-num_new_lines];
+    }
+    for(int i = 0; i < num_new_lines; i++){
+        messages[i] = &message[i*consoleWidth];
+    }
+}
 
 //MAIN METHODS
 void move_player(int pressed){
@@ -152,10 +197,16 @@ void move_player(int pressed){
         erase();
     }
 
-    if(walkable(new_playerY, new_playerX)){
-        playerY = new_playerY;
-        playerX = new_playerX;
+    //revert changes if player is trying to walk to a new space
+    if(!walkable(new_playerY, new_playerX)){
+        wrconsole("You cannot go there!");
+        new_playerY = playerY;
+        new_playerX = playerX;
     }
+
+
+    playerY = new_playerY;
+    playerX = new_playerX;
 }
 
 bool game_loop(int pressed){
@@ -178,22 +229,32 @@ int main() {
     {
         start_color();
 
-        for(int fg=0; fg < num_colors; fg++)
+        int color_number;
+        for(color_number=0; color_number < num_colors; color_number++)
         {
-            init_pair(fg+1, COLOR_BLACK, colors[fg]);
+            init_pair(color_number+1, COLOR_BLACK, colors[color_number]);
+        }
+        for( ; color_number < num_colors*2; color_number++)
+        {
+            init_pair(color_number+1, COLOR_MAGENTA, colors[color_number-num_colors]);
         }
     }
+
     getmaxyx(win, screenHeight, screenWidth);
-    
-    init_terrain(screenHeight, screenWidth);
+    viewWidth = 3 * (screenWidth >> 2);
+    consoleWidth = screenWidth - viewWidth;
+
+
+    init_terrain(screenHeight, viewWidth);
+    init_console();
     init_player();
 
 
 
+    wrconsole("Welcome to MoriCs Revenge!");
     do {
         usleep(MS_PER_TICK * 1000);
         pressed = get_key(win);
-        render();
     } while(game_loop(pressed));
     
 
