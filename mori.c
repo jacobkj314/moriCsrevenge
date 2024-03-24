@@ -6,6 +6,7 @@
 #include <string.h>
 
 //VARIABLES
+long tick = 0;
 int MS_PER_TICK = 50;
 
 int screenHeight;
@@ -20,6 +21,8 @@ char** objects;
 char** messages;
 
 int pressed;
+
+bool debug = false;
 
 int playerX, playerY;
 
@@ -50,7 +53,7 @@ bool sea(int y, int x){
     return terrain[y][x] < 2;
 }
 bool interactable(int y, int x){
-    return (objects[y][x] == '!'); //TODO: expand
+    return (objects[y][x] == '!' || objects[y][x] == 'a' || objects[y][x] == '?'); //TODO: expand
 }
 
 //INIT METHODS
@@ -201,12 +204,17 @@ void render_player(){
 void render(){
 	erase();
 	render_terrain();
-    render_console();
+  render_console();
 	render_player();
 }
 
+/*
 void wrconsole(char* message){
-    int num_new_lines = strlen(message) / consoleWidth + 1;
+    int message_length = strlen(message);
+    int num_new_lines = message_length / consoleWidth;
+    if(num_new_lines * consoleWidth < message_length){
+        num_new_lines++;
+    }
     for(int i = screenHeight-1; i >= num_new_lines; i--){
         messages[i] = messages[i-num_new_lines];
     }
@@ -214,36 +222,94 @@ void wrconsole(char* message){
         messages[i] = &message[i*consoleWidth];
     }
 }
+*/
+void wrconsole(char* message) {
+    int message_length = strlen(message);
+    int num_new_lines = message_length / consoleWidth;
+    if (num_new_lines * consoleWidth < message_length) {
+        num_new_lines++;
+    }
+    for (int i = screenHeight - 1; i >= num_new_lines; i--) {
+        strcpy(messages[i], messages[i - num_new_lines]);
+    }
+    for (int i = 0; i < num_new_lines; i++) {
+        strncpy(messages[i], &message[i * consoleWidth], consoleWidth);
+    }
+}
+
+void interact(int y, int x){
+  if(debug){
+    char dm[32];
+    sprintf(dm, "interaction with %c at (%d,%d)", objects[y][x], y, x);
+    wrconsole(dm);
+  }
+
+  char*  m;
+
+  char o = objects[y][x];
+  if(o == '!'){
+    m = "Tree";
+  }
+  else if(o == '?'){
+    m = "Coral";
+  }
+  else if(o == 'a'){
+    m = "Apple";
+  }
+  else if(o = ' '){
+    return;
+  }
+  else{
+    m = "Unexpected Object!";
+  }
+
+  wrconsole(m);
+}
 
 //MAIN METHODS
 void move_player(int pressed){
     int new_playerY = playerY;
     int new_playerX = playerX;
-
-    if(pressed == 119){
+    bool tried_to_move = false;
+    if(pressed == 119){ //W
         new_playerY--;
+        tried_to_move = true;
     }
-    else if(pressed == 100){
+    else if(pressed == 100){ //A
         new_playerX++;
+        tried_to_move = true;
     }
-    else if(pressed == 115){
+    else if(pressed == 115){ //S
         new_playerY++;
+        tried_to_move = true;
     }
-    else if(pressed == 97){
+    else if(pressed == 97){ //D
         new_playerX--;
+        tried_to_move = true;
     }
-    else if(pressed == 98){
+    else if(pressed == 102){ //F
+        interact(playerY, playerX);
+    }
+    else if(pressed == 108){ //L
+      debug = !debug;
+
+      //char dm[12];
+      //sprintf(dm, "debug=%s;", debug ? "true" : "false");
+      //wrconsole(dm);
+    }
+    else if(pressed == 98){ //B -- I don't remember why I wrote this
         erase();
     }
 
-    if(walkable(new_playerY, new_playerX)){
+    if(tried_to_move && walkable(new_playerY, new_playerX)){
         playerX = new_playerX;
         playerY = new_playerY;
     }
-    else if(interactable(new_playerY, new_playerX)){
-        wrconsole("You found a tree!");
+    else if(tried_to_move && interactable(new_playerY, new_playerX)){
+        interact(new_playerY, new_playerX); //TODO
+        //wrconsole("You found a tree!");
     }
-    else{
+    else if(tried_to_move){
         wrconsole("You cannot go there!");
     }
 
@@ -299,6 +365,13 @@ int main() {
 
     wrconsole("Welcome to MoriCs Revenge!");
     do {
+        tick++;
+        if(debug){
+          char dm[16];
+          sprintf(dm, "%ld", tick);
+          //wrconsole(dm);
+          mvaddstr(0,0,dm);
+        }
         usleep(MS_PER_TICK * 1000);
         pressed = get_key(win);
     } while(game_loop(pressed));
